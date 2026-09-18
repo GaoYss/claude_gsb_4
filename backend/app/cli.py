@@ -11,12 +11,14 @@ import click
 from flask.cli import with_appcontext
 
 from .extensions import db
-from .models import GreenSpace
+from .models import GreenSpace, WaterSource
 from .services import (
     GreenSpaceService,
+    IrrigationRecordService,
     MaintenanceRecordService,
     MaintenanceTaskService,
     PlantReplacementService,
+    WaterSourceService,
 )
 
 SPACE_SEEDS = [
@@ -164,6 +166,10 @@ WEATHERS = ["sunny", "cloudy", "overcast", "rain", "windy"]
 WORKERS = ["王海涛", "李建民", "张凤英", "吴国强", "何丽萍", "赵春生", "孙明华", "许娟"]
 SUPPLIERS = ["萧山苗木合作社", "临安绿源苗圃", "余杭花卉基地", "杭州城西园艺公司"]
 
+WATER_SOURCE_TYPES = ["municipal", "reclaimed", "river", "well", "pond"]
+IRRIGATION_METHODS = ["sprinkler", "drip", "hose", "vehicle", "flood"]
+WATER_TEAMS = ["浇水一班", "浇水二班", "绿化三班", "应急浇水班"]
+
 
 def register_cli(app):
     app.cli.add_command(init_db_command)
@@ -207,7 +213,8 @@ def seed_command(reset, seed_value):
     summary = generate_demo_data(random.Random(seed_value))
     click.echo(
         "演示数据写入完成：绿地 {green_space} 处、养护任务 {maintenance_task} 条、"
-        "养护记录 {maintenance_record} 条、绿植更换 {plant_replacement} 条".format(**summary)
+        "养护记录 {maintenance_record} 条、绿植更换 {plant_replacement} 条、"
+        "水源点 {water_source} 个、灌溉用水记录 {irrigation_record} 条".format(**summary)
     )
 
 
@@ -220,6 +227,8 @@ def generate_demo_data(rng):
         "maintenance_task": 0,
         "maintenance_record": 0,
         "plant_replacement": 0,
+        "water_source": 0,
+        "irrigation_record": 0,
     }
 
     for index, space_seed in enumerate(SPACE_SEEDS):
@@ -230,6 +239,18 @@ def generate_demo_data(rng):
         # 已归档绿地不允许再登记任务与记录，仅保留台账
         if space.status == "archived":
             continue
+
+        water_source = WaterSourceService.create({
+            "name": f"{space.name}灌溉取水点",
+            "source_type": WATER_SOURCE_TYPES[index % len(WATER_SOURCE_TYPES)],
+            "district": space.district,
+            "address": space.address,
+            "green_space_id": space.id,
+            "status": "active" if space.status == "normal" else "standby",
+            "manager": space.manager,
+            "installed_date": space.established_date,
+        })
+        counts["water_source"] += 1
 
         for _ in range(rng.randint(2, 4)):
             task_type, title, priority, executor, description = rng.choice(TASK_SEEDS)
@@ -308,6 +329,25 @@ def generate_demo_data(rng):
             })
             counts["maintenance_record"] += 1
 
+        # 灌溉用水记录：近四个月内分散登记，用水量与覆盖面积匹配绿地规模
+        for _ in range(rng.randint(4, 8)):
+            method = rng.choice(IRRIGATION_METHODS)
+            IrrigationRecordService.create({
+                "green_space_id": space.id,
+                "water_source_id": water_source.id,
+                "irrigation_date": today_ - timedelta(days=rng.randint(1, 120)),
+                "method": method,
+                "water_volume": rng.choice([4, 6, 8, 10, 12, 14]),
+                "duration_minutes": rng.choice([45, 60, 90, 120, 150, 180, 240]),
+                "covered_area_sqm": min(
+                    float(space.area_sqm),
+                    float(rng.choice([800, 1500, 3000, 5000, 8000])),
+                ),
+                "worker_team": rng.choice(WATER_TEAMS),
+                "operator": rng.choice(WORKERS),
+            })
+            counts["irrigation_record"] += 1
+
     # 一条已取消任务，覆盖全部状态场景
     first_space = db.session.query(GreenSpace).order_by(GreenSpace.id.asc()).first()
     if first_space is not None:
@@ -322,6 +362,34 @@ def generate_demo_data(rng):
             "status": "cancelled",
         })
         counts["maintenance_task"] += 1
+
+    # 同区同月构造两次常规用水与一次明显偏高用水，保证异常标记可被观察到
+    sample_source = (
+        db.session.query(WaterSource)
+        .filter(WaterSource.green_space_id.isnot(None), WaterSource.status == "active")
+        .order_by(WaterSource.id.asc())
+        .first()
+    )
+    if sample_source is not None:
+        sample_space = sample_source.green_space
+        for days_ago, volume, team in (
+            (3, 9, "浇水一班"),
+            (6, 11, "浇水二班"),
+            (9, 80, "应急浇水班"),
+        ):
+            IrrigationRecordService.create({
+                "green_space_id": sample_space.id,
+                "water_source_id": sample_source.id,
+                "irrigation_date": today_ - timedelta(days=days_ago),
+                "method": "vehicle",
+                "water_volume": volume,
+                "duration_minutes": 180 if volume > 50 else 90,
+                "covered_area_sqm": min(float(sample_space.area_sqm), 3000.0),
+                "worker_team": team,
+                "operator": "赵春生",
+                "remark": "连续高温应急浇灌，用水量明显偏高" if volume > 50 else None,
+            })
+            counts["irrigation_record"] += 1
 
     db.session.commit()
     return counts

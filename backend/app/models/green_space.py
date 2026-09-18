@@ -36,6 +36,10 @@ class GreenSpace(TimestampMixin, db.Model):
     replacements = db.relationship(
         "PlantReplacement", back_populates="green_space", cascade="all, delete-orphan"
     )
+    irrigations = db.relationship(
+        "IrrigationRecord", back_populates="green_space", cascade="all, delete-orphan"
+    )
+    water_sources = db.relationship("WaterSource", back_populates="green_space")
 
     def to_brief(self):
         """下拉框与关联展示用的精简结构。"""

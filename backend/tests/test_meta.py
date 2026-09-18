@@ -23,6 +23,9 @@ def test_enums_cover_all_business_groups(api):
         "replacement_reason",
         "old_plant_status",
         "measure_unit",
+        "water_source_type",
+        "water_source_status",
+        "irrigation_method",
     }
     assert expected.issubset(set(enums))
     assert {"value": "park", "label": "公园绿地"} in enums["green_space_type"]

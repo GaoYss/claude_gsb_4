@@ -38,6 +38,10 @@
       <StatCard label="绿植更换" :value="formatNumber(statistics.replacement_quantity)"
                 :hint="`共 ${formatNumber(statistics.replacement_count)} 次，金额 ${formatCurrency(statistics.replacement_amount)}`"
                 icon="Cherry" />
+      <StatCard label="灌溉用水" :value="formatNumber(statistics.irrigation_volume)"
+                unit="吨"
+                :hint="`共 ${formatNumber(statistics.irrigation_count)} 次，最近 ${formatDate(statistics.last_irrigation_date)}`"
+                tone="info" icon="Drizzler" />
       <StatCard label="养护任务" :value="formatNumber(taskTotal)" unit="项"
                 :hint="`已完成 ${statistics.task_status.completed || 0} 项，进行中 ${(statistics.task_status.in_progress || 0) + (statistics.task_status.pending || 0)} 项`"
                 tone="info" icon="Tickets" />
@@ -127,6 +131,38 @@
             </el-tag>
           </div>
         </el-tab-pane>
+
+        <el-tab-pane label="近期灌溉用水" name="irrigations">
+          <div class="tab-actions">
+            <el-button link type="primary" @click="goList('irrigations')">查看全部灌溉记录</el-button>
+          </div>
+          <el-table :data="recentIrrigations" size="small" empty-text="暂无灌溉用水记录">
+            <el-table-column prop="record_no" label="编号" width="160" />
+            <el-table-column prop="irrigation_date" label="灌溉日期" width="110" />
+            <el-table-column label="水源点" min-width="150" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.water_source?.name || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="水源类型" width="105">
+              <template #default="{ row }">
+                <EnumTag v-if="row.water_source" group="water_source_type" :value="row.water_source.source_type" />
+              </template>
+            </el-table-column>
+            <el-table-column label="灌溉方式" width="100">
+              <template #default="{ row }">
+                <EnumTag group="irrigation_method" :value="row.method" :label="row.method_label" />
+              </template>
+            </el-table-column>
+            <el-table-column label="用水量（吨）" width="110" align="right">
+              <template #default="{ row }">{{ row.water_volume === null ? '仅登记时长' : formatNumber(row.water_volume) }}</template>
+            </el-table-column>
+            <el-table-column label="时长" width="100">
+              <template #default="{ row }">{{ row.duration_minutes ? `${row.duration_minutes} 分钟` : '-' }}</template>
+            </el-table-column>
+            <el-table-column label="执行班组" width="110">
+              <template #default="{ row }">{{ row.worker_team || '-' }}</template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
       </el-tabs>
     </div>
 
@@ -153,10 +189,11 @@ const loading = ref(false)
 const activeTab = ref('tasks')
 
 const space = ref({})
-const statistics = ref({ task_status: {}, record_count: 0, total_work_hours: 0, replacement_count: 0, replacement_quantity: 0, replacement_amount: 0 })
+const statistics = ref({ task_status: {}, record_count: 0, total_work_hours: 0, replacement_count: 0, replacement_quantity: 0, replacement_amount: 0, irrigation_count: 0, irrigation_volume: 0, last_irrigation_date: null })
 const recentTasks = ref([])
 const recentRecords = ref([])
 const recentReplacements = ref([])
+const recentIrrigations = ref([])
 const replacementSummary = ref([])
 
 const taskTotal = computed(() =>
@@ -172,6 +209,7 @@ async function load() {
     recentTasks.value = data.recent_tasks || []
     recentRecords.value = data.recent_records || []
     recentReplacements.value = data.recent_replacements || []
+    recentIrrigations.value = data.recent_irrigations || []
     replacementSummary.value = data.replacement_summary || []
   } finally {
     loading.value = false
@@ -182,6 +220,7 @@ const LIST_ROUTES = {
   tasks: 'task-list',
   records: 'record-list',
   replacements: 'replacement-list',
+  irrigations: 'irrigation-list',
 }
 
 function goList(name) {

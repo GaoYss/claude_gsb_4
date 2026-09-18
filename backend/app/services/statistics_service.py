@@ -6,10 +6,11 @@ from sqlalchemy import func
 
 from ..constants import ENUM_GROUPS
 from ..extensions import db
-from ..models import GreenSpace, MaintenanceRecord, MaintenanceTask, PlantReplacement
+from ..models import GreenSpace, IrrigationRecord, MaintenanceRecord, MaintenanceTask, PlantReplacement
 from ..models.maintenance_task import OPEN_STATUSES
 from ..utils.dates import today
 from ..utils.numbers import to_float
+from .irrigation_record_service import IrrigationRecordService
 
 
 class StatisticsService:
@@ -96,6 +97,21 @@ class StatisticsService:
             func.coalesce(func.sum(PlantReplacement.amount), 0),
         ).filter(PlantReplacement.replace_date >= year_start).one()
 
+        irrigation_total, irrigation_volume = db.session.query(
+            func.count(IrrigationRecord.id),
+            func.coalesce(func.sum(IrrigationRecord.water_volume), 0),
+        ).one()
+        month_irrigation_count, month_irrigation_volume = db.session.query(
+            func.count(IrrigationRecord.id),
+            func.coalesce(func.sum(IrrigationRecord.water_volume), 0),
+        ).filter(IrrigationRecord.irrigation_date >= month_start).one()
+        abnormal_irrigation_set = IrrigationRecordService.abnormal_id_set()
+        month_irrigation_ids = {
+            row[0]
+            for row in db.session.query(IrrigationRecord.id)
+            .filter(IrrigationRecord.irrigation_date >= month_start).all()
+        }
+
         completed = task_status.get("completed", 0)
         return {
             "generated_at": f"{current:%Y-%m-%d}",
@@ -127,6 +143,14 @@ class StatisticsService:
                 "month_amount": to_float(month_amount) or 0,
                 "year_quantity": to_float(year_quantity) or 0,
                 "year_amount": to_float(year_amount) or 0,
+            },
+            "irrigation": {
+                "total": irrigation_total or 0,
+                "total_volume": to_float(irrigation_volume) or 0,
+                "month_count": month_irrigation_count or 0,
+                "month_volume": to_float(month_irrigation_volume) or 0,
+                "abnormal_count": len(abnormal_irrigation_set & month_irrigation_ids),
+                "total_abnormal_count": len(abnormal_irrigation_set),
             },
         }
 

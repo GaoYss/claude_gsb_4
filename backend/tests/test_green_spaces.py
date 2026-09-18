@@ -124,5 +124,22 @@ def test_delete_is_blocked_until_force(api, make_task):
     assert response.get_json()["data"]["maintenance_task"] == 1
 
     data = api.data(api.delete(f"/api/v1/green-spaces/{space_id}", force="true"))
-    assert data == {"maintenance_task": 1, "maintenance_record": 0, "plant_replacement": 0}
+    assert data == {
+        "maintenance_task": 1,
+        "maintenance_record": 0,
+        "plant_replacement": 0,
+        "irrigation_record": 0,
+        "water_source": 0,
+    }
     assert api.get(f"/api/v1/green-spaces/{space_id}").status_code == 404
+
+
+def test_delete_block_counts_irrigation_related_data(api, make_irrigation):
+    irrigation = make_irrigation()
+    space_id = irrigation.green_space_id
+
+    response = api.delete(f"/api/v1/green-spaces/{space_id}")
+    assert response.status_code == 409
+    details = response.get_json()["data"]
+    assert details["irrigation_record"] == 1
+    assert details["water_source"] == 1

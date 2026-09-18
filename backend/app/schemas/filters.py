@@ -110,3 +110,43 @@ def replacement_filters(args):
     filters["date_from"] = _date(args, "date_from")
     filters["date_to"] = _date(args, "date_to")
     return filters
+
+
+def water_source_filters(args):
+    filters = {}
+    green_space_id = _int(args, "green_space_id")
+    if green_space_id:
+        filters["green_space_id"] = green_space_id
+    district = _text(args, "district")
+    if district:
+        filters["district"] = district
+    for key, group_key in (("source_type", "water_source_type"), ("status", "water_source_status")):
+        value = _enum(args, key, group_key)
+        if value:
+            filters[key] = value
+    keyword = _text(args, "keyword")
+    if keyword:
+        filters["keyword"] = keyword
+    return filters
+
+
+def irrigation_filters(args):
+    filters = {}
+    for key in ("green_space_id", "water_source_id", "maintenance_record_id"):
+        value = _int(args, key)
+        if value:
+            filters[key] = value
+    district = _text(args, "district")
+    if district:
+        filters["district"] = district
+    for key, group_key in (("method", "irrigation_method"),):
+        value = _enum(args, key, group_key)
+        if value:
+            filters[key] = value
+    keyword = _text(args, "keyword")
+    if keyword:
+        filters["keyword"] = keyword
+    filters["date_from"] = _date(args, "date_from")
+    filters["date_to"] = _date(args, "date_to")
+    filters["abnormal_only"] = _flag(args, "abnormal_only")
+    return filters

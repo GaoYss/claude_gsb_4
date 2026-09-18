@@ -44,6 +44,18 @@ const routes = [
         component: () => import('@/views/replacement/ReplacementListView.vue'),
         meta: { title: '绿植更换', icon: 'Cherry' },
       },
+      {
+        path: 'water-sources',
+        name: 'water-source-list',
+        component: () => import('@/views/water-source/WaterSourceListView.vue'),
+        meta: { title: '水源点', icon: 'Coffee' },
+      },
+      {
+        path: 'irrigation',
+        name: 'irrigation-list',
+        component: () => import('@/views/irrigation/IrrigationListView.vue'),
+        meta: { title: '灌溉用水', icon: 'Drizzler' },
+      },
     ],
   },
   {

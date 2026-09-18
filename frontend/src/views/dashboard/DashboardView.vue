@@ -50,6 +50,14 @@
         tone="info"
         icon="Money"
       />
+      <StatCard
+        label="本月灌溉用水"
+        :value="formatNumber(overview.irrigation.month_volume)"
+        unit="吨"
+        :hint="`本月 ${formatNumber(overview.irrigation.month_count)} 次，异常偏高 ${formatNumber(overview.irrigation.abnormal_count)} 次`"
+        :tone="overview.irrigation.abnormal_count ? 'danger' : 'default'"
+        icon="Drizzler"
+      />
     </div>
 
     <div class="chart-grid">
@@ -177,6 +185,7 @@ function emptyDashboard() {
       task: { total: 0, open_count: 0, overdue_count: 0, due_soon_count: 0, completion_rate: 0, by_status: {} },
       record: { total: 0, month_count: 0, month_work_hours: 0, total_work_hours: 0 },
       replacement: { total: 0, month_count: 0, month_quantity: 0, month_amount: 0, year_amount: 0, total_amount: 0 },
+      irrigation: { total: 0, total_volume: 0, month_count: 0, month_volume: 0, abnormal_count: 0 },
     },
     distributions: {
       green_space_by_type: [],

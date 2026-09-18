@@ -151,6 +151,60 @@ def make_replacement(make_space):
 
 
 @pytest.fixture()
+def make_water_source(make_space):
+    from app.services import WaterSourceService
+
+    counter = {"n": 0}
+
+    def _make(space=None, **overrides):
+        counter["n"] += 1
+        space = space or make_space()
+        payload = {
+            "name": f"测试取水点{counter['n']}",
+            "source_type": "municipal",
+            "district": space.district,
+            "address": "测试取水口 1 号",
+            "green_space_id": space.id,
+            "status": "active",
+            "installed_date": date(2018, 6, 1),
+        }
+        payload.update(overrides)
+        return WaterSourceService.create(payload)
+
+    return _make
+
+
+@pytest.fixture()
+def make_irrigation(make_space, make_water_source):
+    from app.services import IrrigationRecordService
+
+    def _make(space=None, source=None, record=None, **overrides):
+        if source is not None and space is None and source.green_space:
+            space = source.green_space
+        if record is not None:
+            space = record.green_space
+        space = space or make_space()
+        source = source or make_water_source(space=space)
+        payload = {
+            "green_space_id": space.id,
+            "water_source_id": source.id,
+            "irrigation_date": date(2026, 3, 16),
+            "method": "sprinkler",
+            "water_volume": 12,
+            "duration_minutes": 90,
+            "covered_area_sqm": min(float(space.area_sqm), 1000.0),
+            "worker_team": "浇水一班",
+            "operator": "王海涛",
+        }
+        if record is not None:
+            payload["maintenance_record_id"] = record.id
+        payload.update(overrides)
+        return IrrigationRecordService.create(payload)
+
+    return _make
+
+
+@pytest.fixture()
 def seeded(app):
     """写入演示数据（固定随机种子，保证断言稳定）。"""
 

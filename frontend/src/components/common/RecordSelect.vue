@@ -12,7 +12,7 @@
     <el-option
       v-for="item in options"
       :key="item.id"
-      :label="`${item.record_no} ${item.record_date} ${item.work_content.slice(0, 16)}`"
+      :label="`${item.record_no} ${item.record_date} ${item.work_content?.slice(0, 16) ?? ''}`"
       :value="item.id"
     />
   </el-select>
