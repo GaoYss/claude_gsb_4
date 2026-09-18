@@ -151,6 +151,48 @@ def make_replacement(make_space):
 
 
 @pytest.fixture()
+def make_water_source(app):
+    from app.services import WaterSourceService
+
+    counter = {"n": 0}
+
+    def _make(**overrides):
+        counter["n"] += 1
+        payload = {
+            "name": f"测试水源点{counter['n']}",
+            "district": "西湖区",
+            "source_type": "municipal",
+            "intake_method": "pipeline",
+            "flow_rate": 20,
+            "status": "normal",
+        }
+        payload.update(overrides)
+        return WaterSourceService.create(payload)
+
+    return _make
+
+
+@pytest.fixture()
+def make_irrigation(make_space, make_water_source):
+    from app.services import IrrigationRecordService
+
+    def _make(space=None, source=None, **overrides):
+        space = space or make_space()
+        source = source or make_water_source()
+        payload = {
+            "green_space_id": space.id,
+            "water_source_id": source.id,
+            "irrigation_date": date(2026, 8, 12),
+            "water_amount": 30,
+            "team": "浇水一班",
+        }
+        payload.update(overrides)
+        return IrrigationRecordService.create(payload)
+
+    return _make
+
+
+@pytest.fixture()
 def seeded(app):
     """写入演示数据（固定随机种子，保证断言稳定）。"""
 

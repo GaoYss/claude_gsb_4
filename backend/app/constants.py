@@ -130,6 +130,28 @@ MEASURE_UNIT = EnumGroup("measure_unit", [
     ("clump", "丛"),
 ])
 
+# ---------------------------------------------------------------- 灌溉用水
+WATER_SOURCE_TYPE = EnumGroup("water_source_type", [
+    ("municipal", "市政供水"),
+    ("river", "河道取水"),
+    ("groundwater", "地下水"),
+    ("reclaimed", "中水回用"),
+    ("rainwater", "雨水调蓄"),
+])
+
+INTAKE_METHOD = EnumGroup("intake_method", [
+    ("pipeline", "管网直供"),
+    ("pump", "泵站提水"),
+    ("gravity", "自流引水"),
+    ("truck", "水车拉运"),
+])
+
+WATER_SOURCE_STATUS = EnumGroup("water_source_status", [
+    ("normal", "正常使用"),
+    ("maintenance", "维护检修"),
+    ("disabled", "停用"),
+])
+
 # 前端下拉与文档共用的一份字典清单
 ENUM_GROUPS = {
     "green_space_type": GREEN_SPACE_TYPE,
@@ -144,6 +166,9 @@ ENUM_GROUPS = {
     "replacement_reason": REPLACEMENT_REASON,
     "old_plant_status": OLD_PLANT_STATUS,
     "measure_unit": MEASURE_UNIT,
+    "water_source_type": WATER_SOURCE_TYPE,
+    "intake_method": INTAKE_METHOD,
+    "water_source_status": WATER_SOURCE_STATUS,
 }
 
 

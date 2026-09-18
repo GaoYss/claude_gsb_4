@@ -6,14 +6,18 @@
 
 from .filters import (
     green_space_filters,
+    irrigation_filters,
     record_filters,
     replacement_filters,
     task_filters,
+    water_source_filters,
 )
 from .green_space import validate_green_space
+from .irrigation_record import validate_irrigation_record
 from .maintenance_record import validate_maintenance_record
 from .maintenance_task import validate_maintenance_task, validate_task_status
 from .plant_replacement import validate_plant_replacement
+from .water_source import validate_water_source
 
 __all__ = [
     "validate_green_space",
@@ -21,8 +25,12 @@ __all__ = [
     "validate_task_status",
     "validate_maintenance_record",
     "validate_plant_replacement",
+    "validate_water_source",
+    "validate_irrigation_record",
     "green_space_filters",
     "task_filters",
     "record_filters",
     "replacement_filters",
+    "water_source_filters",
+    "irrigation_filters",
 ]

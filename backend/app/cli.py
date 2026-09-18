@@ -14,9 +14,11 @@ from .extensions import db
 from .models import GreenSpace
 from .services import (
     GreenSpaceService,
+    IrrigationRecordService,
     MaintenanceRecordService,
     MaintenanceTaskService,
     PlantReplacementService,
+    WaterSourceService,
 )
 
 SPACE_SEEDS = [
@@ -164,6 +166,23 @@ WEATHERS = ["sunny", "cloudy", "overcast", "rain", "windy"]
 WORKERS = ["王海涛", "李建民", "张凤英", "吴国强", "何丽萍", "赵春生", "孙明华", "许娟"]
 SUPPLIERS = ["萧山苗木合作社", "临安绿源苗圃", "余杭花卉基地", "杭州城西园艺公司"]
 
+WATER_SOURCE_SEEDS = [
+    ("武林市政供水点", "拱墅区", "环城北路绿化管网接入口", "municipal", "pipeline",
+     "SB-GS-001", 25, "normal"),
+    ("运河取水泵站", "拱墅区", "运河东路 128 号泵房", "river", "pump",
+     "SB-GS-002", 40, "normal"),
+    ("文一西路中水供水点", "余杭区", "文一西路与荆长大道路口", "reclaimed", "pipeline",
+     "SB-YH-001", 30, "normal"),
+    ("西溪湿地引水口", "西湖区", "文二西路西溪湿地东岸", "river", "gravity",
+     "SB-XH-001", 20, "normal"),
+    ("滨江绿化水车", "滨江区", "江南大道绿化停车场", "municipal", "truck",
+     "SB-BJ-001", 12, "normal"),
+    ("之江路雨水调蓄池", "上城区", "之江路 66 号高架桥下", "rainwater", "gravity",
+     "SB-SC-001", 8, "maintenance"),
+]
+
+IRRIGATION_TEAMS = ["浇水一班", "浇水二班", "绿化三班"]
+
 
 def register_cli(app):
     app.cli.add_command(init_db_command)
@@ -207,7 +226,8 @@ def seed_command(reset, seed_value):
     summary = generate_demo_data(random.Random(seed_value))
     click.echo(
         "演示数据写入完成：绿地 {green_space} 处、养护任务 {maintenance_task} 条、"
-        "养护记录 {maintenance_record} 条、绿植更换 {plant_replacement} 条".format(**summary)
+        "养护记录 {maintenance_record} 条、绿植更换 {plant_replacement} 条、"
+        "水源点 {water_source} 处、灌溉记录 {irrigation_record} 条".format(**summary)
     )
 
 
@@ -220,7 +240,25 @@ def generate_demo_data(rng):
         "maintenance_task": 0,
         "maintenance_record": 0,
         "plant_replacement": 0,
+        "water_source": 0,
+        "irrigation_record": 0,
     }
+
+    # 水源点按行政区建档，供灌溉记录按区取水
+    sources_by_district = {}
+    for name, district, address, source_type, intake, meter_no, flow, status in WATER_SOURCE_SEEDS:
+        source = WaterSourceService.create({
+            "name": name,
+            "district": district,
+            "address": address,
+            "source_type": source_type,
+            "intake_method": intake,
+            "meter_no": meter_no,
+            "flow_rate": flow,
+            "status": status,
+        })
+        sources_by_district.setdefault(district, []).append(source)
+        counts["water_source"] += 1
 
     for index, space_seed in enumerate(SPACE_SEEDS):
         payload = dict(space_seed)
@@ -307,6 +345,35 @@ def generate_demo_data(rng):
                 "quality_result": "qualified",
             })
             counts["maintenance_record"] += 1
+
+        # 灌溉记录：近半年按月分布，水量与时长登记混合；少量明显偏高用于演示异常标记
+        district_sources = sources_by_district.get(space.district) or []
+        if district_sources:
+            inject_anomaly = index % 3 == 0
+            for i in range(rng.randint(4, 8)):
+                source = rng.choice(district_sources)
+                payload = {
+                    "green_space_id": space.id,
+                    "water_source_id": source.id,
+                    "irrigation_date": today_ - timedelta(days=rng.randint(1, 170)),
+                    "team": rng.choice(IRRIGATION_TEAMS),
+                    "operator": rng.choice(WORKERS),
+                }
+                if inject_anomaly and i < 3:
+                    # 本月固定三条：两条正常 + 一条显著偏高，保证同区同月成组、异常必被标记
+                    payload["irrigation_date"] = (
+                        today_.replace(day=1) + timedelta(days=rng.randint(0, 5))
+                    )
+                    if i == 0:
+                        payload["water_amount"] = 500
+                    else:
+                        payload["water_amount"] = rng.choice([15, 20, 25, 30])
+                elif rng.random() < 0.4:
+                    payload["duration_hours"] = rng.choice([1.5, 2, 3, 4, 5, 6])
+                else:
+                    payload["water_amount"] = rng.choice([8, 12, 18, 25, 32, 40, 55])
+                IrrigationRecordService.create(payload)
+                counts["irrigation_record"] += 1
 
     # 一条已取消任务，覆盖全部状态场景
     first_space = db.session.query(GreenSpace).order_by(GreenSpace.id.asc()).first()

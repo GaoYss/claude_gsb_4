@@ -39,6 +39,9 @@ class Config:
     # 启动时自动建表，便于本地与容器内快速验证；生产建议改用 Flask-Migrate。
     AUTO_CREATE_TABLES = _bool_env("AUTO_CREATE_TABLES", True)
 
+    # 灌溉用水异常判定倍数：单次用水量超过同区同月其他记录均值 × 该倍数即标记
+    IRRIGATION_ANOMALY_MULTIPLIER = float(os.getenv("IRRIGATION_ANOMALY_MULTIPLIER", "2.0"))
+
 
 class TestConfig(Config):
     """测试配置：内存库，建表交给测试夹具。"""
